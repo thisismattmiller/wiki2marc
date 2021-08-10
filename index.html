@@ -329,7 +329,13 @@
 	  		global_named_as = named_as
 	  		fetch(build_link(null,named_as))
 			  .then(response => response.json())
-			  .then(data => buildResults(data));
+			  .then(data => buildResults(data))
+			  .catch((error) => {
+				alert('There was an Error trying to convert')
+				document.getElementById('loading').style.display='none'
+			  	console.error('Error:', error);
+				clear()
+			  });
 		 
 	  	})
 
@@ -343,8 +349,14 @@
 	  		global_qid = qid
 	  		fetch(build_link(qid,null))
 			  .then(response => response.json())
-			  .then(data => buildResults(data));
-		 
+			  .then(data => buildResults(data))
+			  .catch((error) => {
+				alert('There was an Error trying to convert')
+				document.getElementById('loading').style.display='none'
+			  	console.error('Error:', error);
+				clear()
+			  });
+			
 	  	})
 
 
