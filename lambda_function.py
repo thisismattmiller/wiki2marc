@@ -22,6 +22,7 @@ def lambda_handler(event, context):
     record.build_0xx()
     record.build_1xx()
     record.build_3xx()
+    record.build_4xx()
     record.build_6xx()
 
     marc_string = record.get_full_marc_as_stirng()
