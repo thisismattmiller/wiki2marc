@@ -204,9 +204,13 @@ class Wiki2MARC:
 		# pass it another wikidata json and it will look in that one
 		look_in = kwargs.get('look_in', self.wiki_record)
 
+		if look_in == None:
+			look_in = self.wiki_record
+
 
 		# if it passed it just a Q id download it
 		if isinstance(look_in, str) == True:
+
 
 
 			if look_in in cache_wiki:
@@ -382,8 +386,6 @@ class Wiki2MARC:
 	def build_1xx(self):
 
 		self.log_add(f"Building the 1xx fields")
-
-		self.named_as = None
 
 		# if we have named_as just use that
 		use_100 = None
@@ -941,61 +943,148 @@ class Wiki2MARC:
 
 		self.log_add(f"Building the 6xx fields")
 
-		results = self.return_wikidata_field_reference('P244','P248')
-
-		# doing the 670
-
-		for r in results:
-			if r['label'] != None:
-
-				w = f"(wikidata){r['value']['id']}"
-				if r['lccn'] != None:
-					w = f"(DLC){r['lccn']}"
-
-				field = Field(
-					tag = '670',
-					indicators = [' ',' '],
-					subfields = [
-						'a', r['label'],
-						'w', w
-				])
-
-				self.marc_record.add_field(field)
 
 
-		# also add one with just the wiki id and date viewd and name
-		# if we have named_as just use that
-		use_name = None
-		if self.named_as != None:
-			use_name = self.named_as
-		else:
+		results = self.return_wikidata_field_reference('P244','P854')
 
-			# try to get it
-			values = self.return_wikidata_field('P244')
+
+		print('--------')
+		print(results)
+		print('--------')
+
+		if len(results) > 0 and 'value' in results[0]:
+
+			uri = results[0]['value']
+
+
+			self.log_add(f"Found a P854 reference to build 670", type="info", msg2=f"URI: {uri}")
+
+
+			if 'id.loc.gov' in uri:
+
+				url = uri + '.bibframe.json'
+
+				r = requests.get(url)
+				print(r.text)
+				data = json.loads(r.text)
+
+				titleId = None
+				title = None
+
+
+				for g in data:
+					if g['@id']:
+						if g['@id'] == uri.replace('.html',''):
+
+							for k in g:
+								if k == 'http://id.loc.gov/ontologies/bibframe/title':
+									if len(g[k]) > 0:
+										titleId = g[k][0]['@id']
+
+
+				# llook for that id in the graphs
+
+
+				for g in data:
+					if g['@id']:
+						if g['@id'] == titleId:
+
+							if g['http://id.loc.gov/ontologies/bibframe/mainTitle']:
+
+								if len(g['http://id.loc.gov/ontologies/bibframe/mainTitle']) > 0:
+									if '@value' in g['http://id.loc.gov/ontologies/bibframe/mainTitle'][0]:
+										title = g['http://id.loc.gov/ontologies/bibframe/mainTitle'][0]['@value']
+
+
+
+
+				if title != None:
+
+
+					viewed_date = datetime.today().strftime('%b. %d, %Y')
+
+
+					field = Field(
+						tag = '670',
+						indicators = [' ',' '],
+						subfields = [
+							'a', f'{title}, viewed {viewed_date}'
+					])
+
+					self.marc_record.add_field(field)
+
+
+
+
+
+			else:
+
+				self.log_add(f"Error not a ID URI", type="error", msg2=f"URI: {uri}")
+
+
+
+		# results = self.return_wikidata_field_reference('P244','P248')
+
+
+		# print('--------')
+		# print(results)
+		# print('--------')
+
+		# # doing the 670
+
+		# for r in results:
+
+
+		# 	if r['label'] != None:
+
+		# 		w = f"(wikidata){r['value']['id']}"
+		# 		if r['lccn'] != None:
+		# 			w = f"(DLC){r['lccn']}"
+
+		# 		field = Field(
+		# 			tag = '670',
+		# 			indicators = [' ',' '],
+		# 			subfields = [
+		# 				'a', r['label'],
+		# 				'w', w
+		# 		])
+
+		# 		self.marc_record.add_field(field)
+
+
+		# # also add one with just the wiki id and date viewd and name
+		# # if we have named_as just use that
+		# use_name = None
+		# if self.named_as != None:
+		# 	use_name = self.named_as
+		# else:
+
+		# 	# try to get it
+		# 	values = self.return_wikidata_field('P244')
 			
-			if len(values)>0:
-				if values[0]['lccn_label'] != None:
-					use_name = values[0]['lccn_label']
+		# 	if len(values)>0:
+		# 		if values[0]['lccn_label'] != None:
+		# 			use_name = values[0]['lccn_label']
 
 
-		if use_name == None or use_name == False:
+		# if use_name == None or use_name == False:
 
-			wiki_label = self.return_wikidata_label(self.qid)
+		# 	wiki_label = self.return_wikidata_label(self.qid)
 
-			use_name = wiki_label
+		# 	use_name = wiki_label
 
-		viewed_date = datetime.today().strftime('%b. %d, %Y')
+		# viewed_date = datetime.today().strftime('%b. %d, %Y')
 
 
-		field = Field(
-			tag = '670',
-			indicators = [' ',' '],
-			subfields = [
-				'a', f'Wikidata {self.qid}, viewed {viewed_date}',
-				'b', use_name
-		])
+		# field = Field(
+		# 	tag = '670',
+		# 	indicators = [' ',' '],
+		# 	subfields = [
+		# 		'a', f'Wikidata {self.qid}, viewed {viewed_date}',
+		# 		'b', use_name
+		# ])
 
-		self.marc_record.add_field(field)
+		# self.marc_record.add_field(field)
 
 
 
@@ -1064,6 +1153,8 @@ class Wiki2MARC:
 		if self.named_as != None:
 
 
+
+
 			self.log_add(f"named_as was provided, searching wikidata for '{self.named_as}'")
 
 
@@ -1082,6 +1173,8 @@ class Wiki2MARC:
 			params = {
 				'query' : sparql
 			}
+
+			print(sparql)
 
 			try:
 				r = requests.get(sparql_endpoint, params=params, headers=headers)

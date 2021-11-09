@@ -11,7 +11,9 @@ import json
 # record = Wiki2MARC(qid='Q84360750')
 # record = Wiki2MARC(qid='Q30014992')
 
-record = Wiki2MARC(qid='Q40909')
+# record = Wiki2MARC(qid='Q40909')
+record = Wiki2MARC(named_as='Van Wye, Steven')
+
 
 
 
