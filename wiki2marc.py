@@ -719,15 +719,14 @@ class Wiki2MARC:
 			use_100_indicator='0'
 
 
-
 		if life_dates == None:
 
+			use_100 = str(use_100)
 			# if there is life dates in the string split them out
-
-			if re.match(r',\s[0-9]{4}\-[0-9]{4}', use_100):
-
+			if re.search(r',\s[0-9]{4}\-[0-9]{4}', use_100):
 
 				m = re.search(r',\s([0-9]{4}\-[0-9]{4})', use_100)
+
 				if m:
 					life_dates = m.group(1)
 
@@ -948,24 +947,28 @@ class Wiki2MARC:
 		results = self.return_wikidata_field_reference('P244','P854')
 
 
-		print('--------')
-		print(results)
-		print('--------')
+		# print('---P244---P854--')
+		# print(results)
+		# print('--------')
 
 		if len(results) > 0 and 'value' in results[0]:
 
 			uri = results[0]['value']
 
-
+			print(uri)
 			self.log_add(f"Found a P854 reference to build 670", type="info", msg2=f"URI: {uri}")
 
 
 			if 'id.loc.gov' in uri:
-
+				uri = uri.lower()
+				uri = uri.replace('.html','')
 				url = uri + '.bibframe.json'
 
+				check_uris = [ url.replace('.bibframe.json',''), url.replace('.bibframe.json','').replace('https','http')  ]
+
+
 				r = requests.get(url)
-				print(r.text)
+				# print(r.text)
 				data = json.loads(r.text)
 
 				titleId = None
@@ -973,13 +976,16 @@ class Wiki2MARC:
 
 
 				for g in data:
+					# print('gggggggg',g)
 					if g['@id']:
-						if g['@id'] == uri.replace('.html',''):
+						# print("-----g['@id']",g['@id'])
+						if g['@id'] in check_uris:
 
 							for k in g:
 								if k == 'http://id.loc.gov/ontologies/bibframe/title':
 									if len(g[k]) > 0:
 										titleId = g[k][0]['@id']
+										# print('----titleId-----',titleId)
 
 
 				# llook for that id in the graphs
@@ -994,7 +1000,8 @@ class Wiki2MARC:
 								if len(g['http://id.loc.gov/ontologies/bibframe/mainTitle']) > 0:
 									if '@value' in g['http://id.loc.gov/ontologies/bibframe/mainTitle'][0]:
 										title = g['http://id.loc.gov/ontologies/bibframe/mainTitle'][0]['@value']
-
+										print("----title here-----")
+										print(title)
 
 
 
@@ -1008,7 +1015,7 @@ class Wiki2MARC:
 						tag = '670',
 						indicators = [' ',' '],
 						subfields = [
-							'a', f'{title}, viewed {viewed_date}'
+							'a', f'{title}, viewed {viewed_date}',
 					])
 
 					self.marc_record.add_field(field)
