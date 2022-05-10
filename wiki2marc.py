@@ -718,7 +718,7 @@ class Wiki2MARC:
 		elif re.match(r",\s*\(", use_100):
 			use_100_indicator='0'
 
-
+		print(life_dates)
 		if life_dates == None:
 
 			use_100 = str(use_100)
@@ -737,7 +737,7 @@ class Wiki2MARC:
 							tag = '100',
 							indicators = [use_100_indicator, ' '],
 							subfields = [
-							'a', use_100,
+							'a', use_100 + ', ',
 							'd', life_dates
 					]))	
 
@@ -764,7 +764,7 @@ class Wiki2MARC:
 			# if there are life dates in the 100 strip them out since we have them already
 
 			use_100 = re.sub(r',\s[0-9]{4}\-[0-9]{4}','',use_100)
-			
+			use_100 = re.sub(r',\s[0-9]{4}\-','',use_100)
 
 
 			self.marc_record.add_field(
@@ -772,7 +772,7 @@ class Wiki2MARC:
 					tag = '100',
 					indicators = [use_100_indicator, ' '],
 					subfields = [
-					'a', use_100,
+					'a', use_100+ ', ',
 					'd', life_dates
 			]))				
 
@@ -812,30 +812,30 @@ class Wiki2MARC:
 
 
 
-		values = self.return_wikidata_field('P21')
+		# values = self.return_wikidata_field('P21')
 
-		for v in values:
+		# for v in values:
 
-			qid = v['value']['id']
-			wlabel = v['label']
-			lccn = v['lccn']
-			lccn_label = v['lccn_label']
-			lcdgt = v['lcdgt']
-			lcdgt_label = v['lcdgt_label']
+		# 	qid = v['value']['id']
+		# 	wlabel = v['label']
+		# 	lccn = v['lccn']
+		# 	lccn_label = v['lccn_label']
+		# 	lcdgt = v['lcdgt']
+		# 	lcdgt_label = v['lcdgt_label']
 
-			# if it has a LCCN use that
-			if lcdgt != None and lcdgt_label != None:
-				subfields = ['a',lcdgt_label,'2','lcdgt','0',f'http://id.loc.gov/authorities/{lcdgt}']
-			elif lccn != None and lccn_label != None:
-				subfields = ['a',lccn_label,'2','lcsh','0',f'http://id.loc.gov/authorities/{lccn}']
-			else:
-				subfields = ['a',wlabel,'2','wikidata','0',f'https://www.wikidata.org/entity/{qid}']
+		# 	# if it has a LCCN use that
+		# 	if lcdgt != None and lcdgt_label != None:
+		# 		subfields = ['a',lcdgt_label,'2','lcdgt','0',f'http://id.loc.gov/authorities/{lcdgt}']
+		# 	elif lccn != None and lccn_label != None:
+		# 		subfields = ['a',lccn_label,'2','lcsh','0',f'http://id.loc.gov/authorities/{lccn}']
+		# 	else:
+		# 		subfields = ['a',wlabel,'2','wikidata','0',f'https://www.wikidata.org/entity/{qid}']
 
-			field = Field(
-				tag = '375',
-				indicators = [' ',' '],
-				subfields = subfields)
-			self.marc_record.add_field(field)
+		# 	field = Field(
+		# 		tag = '375',
+		# 		indicators = [' ',' '],
+		# 		subfields = subfields)
+		# 	self.marc_record.add_field(field)
 
 
 
@@ -920,20 +920,29 @@ class Wiki2MARC:
 				en_label = l['value']
 
 
-
+		added_non_latin = False
 		for l in labels:
 
 			# only add 400 if tghey are differnt
 			if en_label != l['value']:
-
+				added_non_latin=True
 				field = Field(
 					tag = '400',
-					indicators = ['1',' '],
+					indicators = ['0',' '],
 					subfields = [
-						'a',l['value'],
-						'l',f"{l['lang']} ({l['lang_code']})"
+						'a',l['value']
+						# 'l',f"{l['lang']} ({l['lang_code']})"
 					])
 				self.marc_record.add_field(field)
+
+		if added_non_latin:
+			field = Field(
+				tag = '667',
+				indicators = ['',' '],
+				subfields = [
+					'a','Non-Latin references not evaluated'
+				])
+			self.marc_record.add_field(field)
 
 		self.log_add(f"Building the 4xx fields")
 
@@ -962,6 +971,7 @@ class Wiki2MARC:
 			if 'id.loc.gov' in uri:
 				uri = uri.lower()
 				uri = uri.replace('.html','')
+				real_uri = uri
 				url = uri + '.bibframe.json'
 
 				check_uris = [ url.replace('.bibframe.json',''), url.replace('.bibframe.json','').replace('https','http')  ]
@@ -1016,6 +1026,7 @@ class Wiki2MARC:
 						indicators = [' ',' '],
 						subfields = [
 							'a', f'{title}, viewed {viewed_date}',
+							'u', real_uri
 					])
 
 					self.marc_record.add_field(field)
