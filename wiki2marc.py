@@ -92,6 +92,7 @@ class Wiki2MARC:
 										b = self.return_wikidata_field('P1144',look_in=value['id'] )
 										if len(b) > 0:
 											b = b[0]['value']
+
 										else:
 											b = None
 
@@ -250,15 +251,29 @@ class Wiki2MARC:
 				look_in = data
 
 
-
+		# print(json.dumps(look_in,indent=2))
 		# simply see if we have that field
 		if field in look_in['claims']:
 			self.log_add(f"Found field {field} in the wiki record", msg2=f"{json.dumps(look_in['claims'][field],indent=2)}")
 
+			quals = {}
 			for f in look_in['claims'][field]:
 
 				wiki_type = f['mainsnak']['datatype']
 				wiki_value = f['mainsnak']['datavalue']['value']
+
+
+				if 'qualifiers' in f:
+					for qual_id in f['qualifiers']:
+						if qual_id not in quals:
+							quals[qual_id] = []
+
+						for qual_val in f['qualifiers'][qual_id]:
+							if qual_val['datavalue']['type'] == 'string':
+								quals[qual_id].append(qual_val['datavalue']['value'])
+
+
+
 
 				if wiki_type == 'wikibase-item':
 
@@ -300,10 +315,7 @@ class Wiki2MARC:
 						self.log_add(f'Could not use LC number for the wikidata item {l} ({wiki_value["id"]}) because it is not mapped to a LC vocab (lcsh, naf, lcdgt, etc..)', type='warning')
 
 
-
-
-
-					results.append({'value':wiki_value,'wiki_type':wiki_type,'label':l,'lccn':lccn,'lccn_label':lccn_label, 'lcdgt_label':lcdgt_label, 'lcdgt':lcdgt})
+					results.append({'value':wiki_value,'wiki_type':wiki_type,'label':l,'lccn':lccn,'lccn_label':lccn_label, 'quals': quals, 'lcdgt_label':lcdgt_label, 'lcdgt':lcdgt})
 
 				elif wiki_type == 'external-id' and (field == 'P244' or field == 'P4946'):
 
@@ -311,12 +323,12 @@ class Wiki2MARC:
 					lccn = wiki_value
 					lccn_label = self.return_LC_label(wiki_value)
 
-					results.append({'value':wiki_value,'wiki_type':wiki_type,'label':None,'lccn':lccn,'lccn_label':lccn_label})
+					results.append({'value':wiki_value,'wiki_type':wiki_type,'label':None,'lccn':lccn,'lccn_label':lccn_label,'quals': quals,})
 
 
 
 				else:
-					results.append({'value':wiki_value,'wiki_type':wiki_type,'label':None,'lccn':None,'lccn_label':None})
+					results.append({'value':wiki_value,'wiki_type':wiki_type,'label':None,'lccn':None,'lccn_label':None,'quals': quals,})
 
 
 		else:
@@ -386,7 +398,7 @@ class Wiki2MARC:
 	def build_1xx(self):
 
 		self.log_add(f"Building the 1xx fields")
-
+		print("self.named_asself.named_asself.named_asself.named_as",self.named_as)
 		# if we have named_as just use that
 		use_100 = None
 		if self.named_as != None:
@@ -401,6 +413,8 @@ class Wiki2MARC:
 					use_100 = values[0]['lccn_label']
 
 
+			print("use_100use_100use_100use_100use_100",use_100)
+
 			if use_100 == None:
 
 				# see if it is at the record level
@@ -409,7 +423,7 @@ class Wiki2MARC:
 					if values[0]['value'] != None:
 						use_100 = values[0]['value']
 
-
+			print("use_100use_100use_100use_100use_100",use_100)
 
 		if use_100 == None:
 
@@ -651,7 +665,7 @@ class Wiki2MARC:
 				values[0]['value']['time'] = values[0]['value']['time'].split('T')[0].replace('+','')
 					
 				lifedates_subfields.append('f')
-				lifedates_subfields.append(values[0]['value']['time'])
+				lifedates_subfields.append(values[0]['value']['time'].replace('-00',''))
 
 				if len(values[0]['value']['time'].split('-')) == 3:
 					birth_year = values[0]['value']['time'].split('-')[0]
@@ -674,7 +688,7 @@ class Wiki2MARC:
 				
 				values[0]['value']['time'] = values[0]['value']['time'].split('T')[0].replace('+','')
 				lifedates_subfields.append('g')
-				lifedates_subfields.append(values[0]['value']['time'])
+				lifedates_subfields.append(values[0]['value']['time'].replace('-00',''))
 
 				
 				if len(values[0]['value']['time'].split('-')) == 3:
@@ -685,20 +699,75 @@ class Wiki2MARC:
 				self.log('P570 was not a string?',type='warning',msg2=f"{json.dumps(values[0]['value'])}")
 
 
+		if (len(lifedates_subfields)) == 0:
+
+			use_100 = None
+			# try to get it
+			values = self.return_wikidata_field('P244')
+			if len(values)>0:
+				if values[0]['lccn_label'] != False:
+					use_100 = values[0]['lccn_label']
+
+
+			if use_100 == None:
+
+				# see if it is at the record level
+				values = self.return_wikidata_field('P1810')
+				if len(values)>0:
+					if values[0]['value'] != None:
+						use_100 = values[0]['value']			
+
+
+			print('use_100use_100use_100use_100',use_100)
+
+
+
+			#TODO consolidate this
+			if use_100 != None:
+
+				if re.search(r',\s[0-9]{3,4}\-[0-9]{3,4}', use_100):
+
+					m = re.search(r',\s([0-9]{3,4}\-[0-9]{3,4})', use_100)
+
+					if m:
+						life_dates = m.group(1)
+
+						lifedates_subfields.append('f')
+						lifedates_subfields.append(life_dates.split('-')[0])
+						lifedates_subfields.append('g')
+						lifedates_subfields.append(life_dates.split('-')[1])
+
+
 		if len(lifedates_subfields) > 0:
+
+			lifedates_subfields.append('2')
+			lifedates_subfields.append('EDTF')
+
+
 			field = Field(
 				tag = '046',
 				indicators = [' ',' '],
 				subfields = lifedates_subfields)
 			self.marc_record.add_field(field)
 
+		print("named_asnamed_asnamed_asnamed_as",self.named_as)
+
+
+
+		# look to see if they just put the marc string in the named_as
+
+		values = self.return_wikidata_field('P244')
+		print('valuesvaluesvaluesvalues',values)
+		# if len(values)>0:
+		# 	if values[0]['lccn_label'] != False:
+		# 		use_100 = values[0]['lccn_label']
+
+
+
 
 
 
 		# build the name 100 now that we have life dates possibly
-
-		
-		
 		life_dates = None
 		if (birth_year != None and death_year != None):
 			life_dates = f"{birth_year}-{death_year}"
@@ -718,19 +787,19 @@ class Wiki2MARC:
 		elif re.match(r",\s*\(", use_100):
 			use_100_indicator='0'
 
-		print(life_dates)
+		print('life_dates',life_dates)
 		if life_dates == None:
 
 			use_100 = str(use_100)
 			# if there is life dates in the string split them out
-			if re.search(r',\s[0-9]{4}\-[0-9]{4}', use_100):
+			if re.search(r',\s[0-9]{3,4}\-[0-9]{3,4}', use_100):
 
-				m = re.search(r',\s([0-9]{4}\-[0-9]{4})', use_100)
+				m = re.search(r',\s([0-9]{3,4}\-[0-9]{3,4})', use_100)
 
 				if m:
 					life_dates = m.group(1)
 
-					use_100 = re.sub(r',\s[0-9]{4}\-[0-9]{4}','',use_100)
+					use_100 = re.sub(r',\s[0-9]{3,4}\-[0-9]{3,4}','',use_100)
 
 					self.marc_record.add_field(
 						Field(
@@ -763,8 +832,8 @@ class Wiki2MARC:
 
 			# if there are life dates in the 100 strip them out since we have them already
 
-			use_100 = re.sub(r',\s[0-9]{4}\-[0-9]{4}','',use_100)
-			use_100 = re.sub(r',\s[0-9]{4}\-','',use_100)
+			use_100 = re.sub(r',\s[0-9]{3,4}\-[0-9]{3,4}','',use_100)
+			use_100 = re.sub(r',\s[0-9]{3,4}\-','',use_100)
 
 
 			self.marc_record.add_field(
@@ -926,9 +995,15 @@ class Wiki2MARC:
 			# only add 400 if tghey are differnt
 			if en_label != l['value']:
 				added_non_latin=True
+
+				indicators_400 = ['0',' ']
+
+				if ',' in l['value']:
+					indicators_400 = ['1',' ']
+
 				field = Field(
 					tag = '400',
-					indicators = ['0',' '],
+					indicators = indicators_400,
 					subfields = [
 						'a',l['value']
 						# 'l',f"{l['lang']} ({l['lang_code']})"
@@ -962,7 +1037,15 @@ class Wiki2MARC:
 
 		if len(results) > 0 and 'value' in results[0]:
 
-			uri = results[0]['value']
+
+			uri = ''
+			for x in results:
+				if 'id.loc.gov' in x['value']:
+
+					uri = x['value']
+
+
+
 
 			print(uri)
 			self.log_add(f"Found a P854 reference to build 670", type="info", msg2=f"URI: {uri}")

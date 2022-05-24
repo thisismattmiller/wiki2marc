@@ -11,10 +11,24 @@ import json
 # record = Wiki2MARC(qid='Q84360750')
 # record = Wiki2MARC(qid='Q30014992')
 
-record = Wiki2MARC(qid='Q22107307')
+# record = Wiki2MARC(qid='Q22107307')
 # record = Wiki2MARC(qid='Q27656309')
 # record = Wiki2MARC(qid='Q45785')
 # record = Wiki2MARC(qid='Q235063')
+
+
+# record = Wiki2MARC(qid='Q27656309')
+# record = Wiki2MARC(qid='Q22107307')
+
+#  TODO COMPLEX NAME HERE wtih the MARC named_as
+# record = Wiki2MARC(qid='Q232031')
+
+
+record = Wiki2MARC(qid='Q485114')
+
+
+
+
 
 # record = Wiki2MARC(named_as='Johnson, Harold, 1954-2022')
 
