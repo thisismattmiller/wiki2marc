@@ -335,7 +335,7 @@ class Wiki2MARC:
 			self.log_add(f"Did NOT find field {field} in the wiki record")
 
 
-
+		print(results)
 		return results
 
 
@@ -741,7 +741,7 @@ class Wiki2MARC:
 		if len(lifedates_subfields) > 0:
 
 			lifedates_subfields.append('2')
-			lifedates_subfields.append('EDTF')
+			lifedates_subfields.append('edtf')
 
 
 			field = Field(
@@ -754,10 +754,61 @@ class Wiki2MARC:
 
 
 
+		# figure out if first indicator should be
+		use_100_indicator = '1'
+		use_marc_named_as = False
+		use_marc_subfields = []
+
 		# look to see if they just put the marc string in the named_as
 
 		values = self.return_wikidata_field('P244')
 		print('valuesvaluesvaluesvalues',values)
+		for p244 in values:
+			print("Ch")
+			print(p244)
+			if 'quals' in p244:
+				if 'P1810' in p244['quals']:
+
+					for qual in p244['quals']['P1810']:
+
+						if re.match(r'^100\s([0-9]|#){2}\s\$[a-z]',qual):
+
+							use_marc_named_as = True
+							# full marc tag in the named as
+							use_100_indicator = qual[4]
+
+
+							print('full',qual)
+							print(qual.split('$')[1:])
+							for x in qual.split('$')[1:]:
+								tag = x[0]
+
+								if x[1] == ' ':
+									val = x[2:]
+								else:
+									val = x[1:]
+
+
+								use_marc_subfields.append(tag)
+								use_marc_subfields.append(val)
+								
+						elif qual.count("$") > 1:
+							use_marc_named_as = True
+
+							for x in qual.split('$')[1:]:
+								tag = x[0]
+
+								if x[1] == ' ':
+									val = x[2:]
+								else:
+									val = x[1:]
+
+
+								use_marc_subfields.append(tag)
+								use_marc_subfields.append(val)							
+
+
+
 		# if len(values)>0:
 		# 	if values[0]['lccn_label'] != False:
 		# 		use_100 = values[0]['lccn_label']
@@ -777,8 +828,6 @@ class Wiki2MARC:
 			life_dates = f"-{death_year}"
 
 
-		# figure out if first indicator should be
-		use_100_indicator = '1'
 
 		if re.match(r"^[A-z]+,", use_100):
 			use_100_indicator='1'
@@ -788,7 +837,19 @@ class Wiki2MARC:
 			use_100_indicator='0'
 
 		print('life_dates',life_dates)
-		if life_dates == None:
+		
+		if use_marc_named_as == True:
+
+			self.marc_record.add_field(
+				Field(
+					tag = '100',
+					indicators = [use_100_indicator, ' '],
+					subfields = use_marc_subfields
+				))	
+
+
+
+		elif life_dates == None:
 
 			use_100 = str(use_100)
 			# if there is life dates in the string split them out

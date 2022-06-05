@@ -24,7 +24,9 @@ import json
 # record = Wiki2MARC(qid='Q232031')
 
 
-record = Wiki2MARC(qid='Q485114')
+# record = Wiki2MARC(qid='Q485114')
+record = Wiki2MARC(qid='Q75350367')
+
 
 
 
